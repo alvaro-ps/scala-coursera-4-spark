@@ -17,4 +17,8 @@ project/plugins/project/
 .worksheet
 .idea
 .metals
+.bloop
 metals.sbt
+
+# data
+resources
