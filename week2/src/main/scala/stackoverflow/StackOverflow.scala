@@ -77,7 +77,18 @@ class StackOverflow extends StackOverflowInterface with Serializable {
 
   /** Group the questions and answers together */
   def groupedPostings(postings: RDD[Posting]): RDD[(QID, Iterable[(Question, Answer)])] = {
-    ???
+    val questions: RDD[(QID, Question)] = 
+      postings.filter(_.postingType == 1).map(q => (q.id, q))
+    val answers: RDD[(QID, Answer)] = 
+      postings.filter(a => a.postingType == 2 && a.parentId.isDefined).map(a => (a.parentId.get, a))
+
+    questions
+      .leftOuterJoin(answers)
+      .filter {
+        case (qid, (question, optional_answer)) => optional_answer.isDefined
+      }
+      .mapValues { case (question, answer) => (question, answer.get) }
+      .groupByKey()
   }
 
 
@@ -96,7 +107,11 @@ class StackOverflow extends StackOverflowInterface with Serializable {
       highScore
     }
 
-    ???
+    grouped.flatMap {
+      case (qid, qa_iter) => 
+        val high = answerHighScore(qa_iter.map(_._2).toArray)
+        for ((q, a) <- qa_iter if a.score == high) yield (q, a.score)
+    }
   }
 
 
@@ -116,7 +131,10 @@ class StackOverflow extends StackOverflowInterface with Serializable {
       }
     }
 
-    ???
+    scored
+      .map { case (q, score) => (firstLangInTag(q.tags, langs), score) }
+      .filter { case (option_lang, score) => option_lang.isDefined }
+      .map { case (Some(lang), score) => (langSpread*lang, score)}
   }
 
 
